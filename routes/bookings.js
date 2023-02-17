@@ -3,12 +3,28 @@ const router = express.Router();
 
 const Booking = require('../models/bookingModel');
 
+const { createLogger, format, transports } = require("winston");
+const { combine, timestamp, label, printf } = format;
+
+const myFormt = printf(({level, message, label, timestamp}) => {
+    return `${timestamp} [${label}] ${level}: ${message}`;
+});
+
+const logger = createLogger({
+    format: combine(
+        label({ label: 'booking' }),
+        timestamp(),
+        myFormt
+    ),
+    transports: [new transports.Console()]
+});
+
 // get a list of bookings from db
 router.get('/bookings', async (req, res, next) => {
-    console.log(`Received a GET request on ${req.path} from ${req.hostname}`);
+    logger.info(`Received a GET request on ${req.path} from ${req.hostname}`);
     let rooms = await Booking.find({hotel: req.body.hotel})
     res.send(rooms);
-    console.log(`Response sent for GET ${req.path} to ${req.hostname}`);
+    logger.info(`Response sent for GET ${req.path} to ${req.hostname}`);
 });
 
 // add a new booking to db

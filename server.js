@@ -3,10 +3,12 @@ const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const app = express()
 
-let mongoHost = "localhost";
-let mongoPort = 27017;
-let dbName = "test";
-let appPort = 3000;
+let mongoHost = process.env.MONGO_HOST; // localhost
+let mongoPort = process.env.MONGO_PORT; // 27017
+let dbName = process.env.MONGO_DB; // test
+let appPort = process.env.PORT; // 3000
+
+let isReady = false;
 
 app.use(bodyParser.json());
 console.log('App started!');
@@ -18,6 +20,23 @@ app.use('/api', require('./routes/users'));
 app.use('/api', require('./routes/bookings'));
 app.use('/api', require('./routes/rooms'));
 
+app.use('/version', function(req, res) {
+  res.status(200).send("version 0.0.4");
+});
+
+app.get('/health', (req, res) => {
+  res.status(200);
+});
+
+app.get('/readiness', (req, res) => {
+  let status = isReady ? 200 : 500;
+  res.status(status);
+});
+
+app.use((err, req, res, next) => {
+  res.status(422).send({error: err.message});
+});
+
 app.use((err, req, res, next) => {
   res.status(422).send({error: err.message});
 });
@@ -26,8 +45,6 @@ app.use((err, req, res, next) => {
 let url = `mongodb://${mongoHost}:${mongoPort}/${dbName}`;
 
 (async () => {
-  let trials = 10;
-  for (let i = 0; i < trials; i ++ ) {
     try {
       await mongoose.connect(url, {
         "useNewUrlParser": true,
@@ -36,15 +53,14 @@ let url = `mongodb://${mongoHost}:${mongoPort}/${dbName}`;
       })
       console.log("Database connected!")
       mongoose.Promise = global.Promise;
+      isReady = true;
     }
     catch (e) {
-      console.log("Impossible to connect to database: test", (i+1), "/", trials)
+      console.log("Impossible to connect to database: test")
+      process.exit();
     }
-  }  
 })()
-
+  
 app.listen(appPort, () => {
   console.log(`Example app listening at http://localhost:${appPort}`)
 })
-
-
